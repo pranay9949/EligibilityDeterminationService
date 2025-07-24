@@ -11,6 +11,7 @@ public class UserRegisteredSsnResponse {
     private Long Ssn;
     private LocalDate dateOfBirth;
     private String  userName;
+    private String emailId;
 
     public Long getSsn() {
         return Ssn;
@@ -34,5 +35,13 @@ public class UserRegisteredSsnResponse {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public String getEmailId() {
+        return emailId;
+    }
+
+    public void setEmailId(String emailId) {
+        this.emailId = emailId;
     }
 }

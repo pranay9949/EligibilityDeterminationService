@@ -17,4 +17,11 @@ public class GlobalExceptionHandler {
         mp.put("Error Message",ex.getMessage());
         return new  ResponseEntity<>(mp,HttpStatus.BAD_REQUEST);
     }
+
+    @ExceptionHandler(CaseNumAlreadyExistException.class)
+    public ResponseEntity<Map<String,String>> handleError(CaseNumAlreadyExistException ex){
+        Map<String,String> mp = new HashMap<>();
+        mp.put("Error Message",ex.getMessage());
+        return new  ResponseEntity<>(mp,HttpStatus.BAD_REQUEST);
+    }
 }

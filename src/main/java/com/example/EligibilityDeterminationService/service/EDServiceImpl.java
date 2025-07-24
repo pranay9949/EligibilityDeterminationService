@@ -6,8 +6,10 @@ import com.example.EligibilityDeterminationService.dto.EligibilityResponse;
 import com.example.EligibilityDeterminationService.dto.SummaryResponse;
 import com.example.EligibilityDeterminationService.dto.UserRegisteredSsnResponse;
 import com.example.EligibilityDeterminationService.entity.EligibilityDetails;
+import com.example.EligibilityDeterminationService.exception.CaseNumAlreadyExistException;
 import com.example.EligibilityDeterminationService.exception.CaseNumNotFoundException;
 import com.example.EligibilityDeterminationService.feign.AppRegistrationClient;
+import com.example.EligibilityDeterminationService.feign.CorrespondanceClient;
 import com.example.EligibilityDeterminationService.feign.DataCollectionClient;
 import com.example.EligibilityDeterminationService.repo.EligibilityRepo;
 import feign.FeignException;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -26,18 +29,25 @@ public class EDServiceImpl implements EDService {
     private DataCollectionClient dataCollectionClient;
     private AppRegistrationClient registrationClient;
     private EligibilityRepo eligibilityRepo;
+    private CorrespondanceClient correspondanceClient;
 
 
-    public EDServiceImpl(DataCollectionClient dataCollectionClient, AppRegistrationClient registrationClient, EligibilityRepo eligibilityRepo) {
+    public EDServiceImpl(DataCollectionClient dataCollectionClient, AppRegistrationClient registrationClient, EligibilityRepo eligibilityRepo, CorrespondanceClient correspondanceClient) {
         this.dataCollectionClient = dataCollectionClient;
         this.registrationClient = registrationClient;
         this.eligibilityRepo = eligibilityRepo;
+        this.correspondanceClient=correspondanceClient;
 
     }
 
     @Override
-    public EligibilityResponse determineEligibility(Long caseNum) throws CaseNumNotFoundException {
+    public EligibilityResponse determineEligibility(Long caseNum) throws CaseNumNotFoundException, CaseNumAlreadyExistException {
         SummaryResponse res;
+
+        if(eligibilityRepo.existsByCaseNumber(caseNum)){
+            throw new CaseNumAlreadyExistException("Provided Case Number is Already verified and saved , please get data");
+
+        }
 
 
         try {
@@ -54,6 +64,8 @@ public class EDServiceImpl implements EDService {
             throw new IllegalArgumentException("Unexpected error");
         }
 
+       String coTriggerSave = correspondanceClient.saveTriggerData(caseNum).getBody();
+
 
         EligibilityResponse response = checkAndExcuteEligibity(res);
         response.setCaseNumber(caseNum);
@@ -67,6 +79,30 @@ public class EDServiceImpl implements EDService {
         return response;
 
 
+    }
+
+    public List<EligibilityResponse> getAllUsers(List<Long> caseNum){
+        List<EligibilityDetails> list = eligibilityRepo.findAllByCaseNumberIn(caseNum);
+        List<EligibilityResponse> resp = new ArrayList<>();
+        for(EligibilityDetails li : list){
+            EligibilityResponse r = new EligibilityResponse();
+            BeanUtils.copyProperties(li,r);
+            resp.add(r);
+        }
+        return  resp;
+
+    }
+
+    @Override
+    public List<EligibilityResponse> getAllBenefits() {
+        List<EligibilityDetails> res = eligibilityRepo.findAll();
+        List<EligibilityResponse> resp = new ArrayList<>();
+        for(EligibilityDetails li : res){
+            EligibilityResponse r = new EligibilityResponse();
+            BeanUtils.copyProperties(li,r);
+            resp.add(r);
+        }
+        return  resp;
     }
 
     public EligibilityResponse checkAndExcuteEligibity(SummaryResponse res) {
@@ -143,6 +179,17 @@ public class EDServiceImpl implements EDService {
         }
 
 
+        return response;
+    }
+
+
+    public EligibilityResponse getEligibilityRes(Long caseNum) throws CaseNumNotFoundException {
+        EligibilityDetails eligibilityDetails = eligibilityRepo.findByCaseNumber(caseNum);
+        if(eligibilityDetails==null){
+            throw new CaseNumNotFoundException("Case Number not found");
+        }
+        EligibilityResponse response = new EligibilityResponse();
+        BeanUtils.copyProperties(eligibilityDetails,response);
         return response;
     }
 
